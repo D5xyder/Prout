@@ -110,6 +110,16 @@ async def tg(ctx, user: discord.Member, time):
 
 
 @bot.command(pass_context=True)
+async def upload(ctx, fichier):
+    if "token" in fichier:
+        return
+    try:
+        await ctx.send(file=discord.File(rf'./{fichier}'))
+    except:
+        await ctx.send("Fichier introuvable ou trop gros jsp...")
+
+
+@bot.command(pass_context=True)
 async def save(ctx):
     # On va merge les 2 json pour avoir une trace de ceux qui sont plus là en cas d'une save
     read_dict = {}
