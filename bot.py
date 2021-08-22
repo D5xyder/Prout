@@ -20,11 +20,13 @@ table = str.maketrans(dict.fromkeys(string.punctuation))
 
 helptxt = """
 ```
->blague [catégorie]         Catégories : dark, blondes, beauf, dev, global, limit
->e                          Encode un message/image
->d                          Décode un message encodé
->clear <nombre>             Clear x messages
->tg <@personne> <secondes>  Snipe un fdp pour lui faire fermer sa grosse gueule
+>blague [catégorie]               Catégories : dark, blondes, beauf, dev, global, limit
+>e                                Encode un message/image
+>d                                Décode un message encodé
+>clear <nombre>                   Clear x messages
+>tg <@personne> <nombre><unité>   Snipe un fdp pour lui faire fermer sa grosse gueule
+    Ex: >tg @Dydou 60s
+    Unités dispo : s, m, h, j
 ```
 """
 
@@ -81,22 +83,25 @@ async def blague(ctx):
 async def aide(ctx):
     await ctx.send(helptxt)
 
-@bot.command(pass_context=True)
-async def so(ctx):
-    channel = bot.get_channel(667053408636633088)
-    await channel.send(" ".join(ctx.message.content.split()[1:]))
+tg_dict = { "s": 1, "m": 60, "h": 3600, "j": 86400 }
 
 @bot.command(pass_context=True)
-async def tg(ctx, user: discord.Member, time: int):
+async def tg(ctx, user: discord.Member, time):
+    # Admin ou posx
     if ctx.message.author.guild_permissions.administrator or ctx.author.id == 200227803189215232:
+        try:
+            multiplier = tg_dict[time[-1:]]
+        except KeyError:
+            await ctx.send("Usage: >tg <@personne> <nombre><unité>\nEx: >tg @Dydou 60s\nUnités dispo : s, m, h, j")
+            return
         role = get(ctx.guild.roles, id=676415527098384406)
         await ctx.message.delete()
         await user.add_roles(role)
-        await ctx.send(f"{ctx.author.name} a mute {user.name} pendant {time} secondes")
-        await asyncio.sleep(time)
+        await ctx.send(f"{ctx.author.nick} a mute {user.nick} pendant {time}")
+        await asyncio.sleep(int(time[:-1])*multiplier)
         await user.remove_roles(role)
     else:
-        await ctx.send("Padpo pas les perms")
+        await ctx.send("Padpo, pas les perms")
 
 @bot.event
 async def on_message(message):
