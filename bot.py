@@ -8,6 +8,7 @@ from discord.ext import commands
 import discord
 from discord.utils import get
 from tokenBot import TOKEN
+import json
 
 blagues = BlaguesAPI(
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMjAwMjI3ODAzMTg5MjE1MjMyIiwibGltaXQiOjEwMCwia2V5IjoiY0NZe"
@@ -15,7 +16,10 @@ blagues = BlaguesAPI(
     "wMDowMCIsImlhdCI6MTYyMzg3MDE0M30.3Pq_NdS_220fpKHp-sPzWE-pYoMnarOi0gQ0tLF9zBI"
 )
 
-bot = commands.Bot(command_prefix='>')
+intents = discord.Intents.default()
+intents.members = True
+
+bot = commands.Bot(command_prefix='>', intents=intents)
 table = str.maketrans(dict.fromkeys(string.punctuation))
 
 helptxt = """
@@ -83,6 +87,7 @@ async def blague(ctx):
 async def aide(ctx):
     await ctx.send(helptxt)
 
+
 tg_dict = { "s": 1, "m": 60, "h": 3600, "j": 86400 }
 
 @bot.command(pass_context=True)
@@ -102,6 +107,30 @@ async def tg(ctx, user: discord.Member, time):
         await user.remove_roles(role)
     else:
         await ctx.send("Padpo, pas les perms")
+
+
+@bot.command(pass_context=True)
+async def save(ctx):
+    # On va merge les 2 json pour avoir une trace de ceux qui sont plus là en cas d'une save
+    read_dict = {}
+    try:
+        with open("roles.json", 'r') as f:
+             read_dict = json.load(f)
+    except FileNotFoundError:
+        pass
+
+    members_dict = {}
+    async for member in ctx.guild.fetch_members(limit=None):
+        members_dict[str(member.id)] = [role.id for role in member.roles]
+
+    # car j'ai pas 3.9 et que {**dict1, **dict2} me casse les couilles avec les clé en double
+    # bref ca modifie les roles de l'ancien fichier et ca le save
+    for id, roles in members_dict.items():
+        read_dict[id] = roles
+
+    with open("roles.json", 'w') as f:
+        json.dump(read_dict, f)
+
 
 @bot.event
 async def on_message(message):
