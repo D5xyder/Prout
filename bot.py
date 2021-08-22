@@ -19,6 +19,9 @@ blagues = BlaguesAPI(
 intents = discord.Intents.default()
 intents.members = True
 
+#Pour pas que le bot change le json quand il ajoute les roles
+ajout_roles = False
+
 bot = commands.Bot(command_prefix='>', intents=intents)
 table = str.maketrans(dict.fromkeys(string.punctuation))
 
@@ -118,9 +121,33 @@ async def upload(ctx, fichier):
     except:
         await ctx.send("Fichier introuvable ou trop gros jsp...")
 
+
+@bot.event
+async def on_member_join(member):
+    global ajout_roles
+    ajout_roles = True
+    roles_dict = {}
+    with open("roles.json", 'r') as f:
+        roles_dict = json.load(f)
+
+    roles = []
+    # Créer la liste d'obj des roles en retirant @everyone
+    for role_id in roles_dict[str(member.id)][1:]:
+        roles.append(member.guild.get_role(role_id))
+    await member.add_roles(*roles)
+    ajout_roles = False
+
+
 @bot.event
 async def on_member_update(before, after):
-    await before.guild.get_channel(667010964444545037).send(f"{datetime.datetime.utcnow()} | Les roles ont été save !")
+    # join le serveur
+    if len(before.roles) == 1 and len(after.roles) == 1:
+        return
+    #le bot ajoute les roles ?
+    global ajout_roles
+    if ajout_roles:
+        return
+    await before.guild.get_channel(667010964444545037).send(f"Les rôles de {before.nick} ({before.name}) ont été save ! {datetime.datetime.utcnow()}")
     # On va merge les 2 json pour avoir une trace de ceux qui sont plus là en cas d'une save
     read_dict = {}
     try:
