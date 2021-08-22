@@ -118,9 +118,9 @@ async def upload(ctx, fichier):
     except:
         await ctx.send("Fichier introuvable ou trop gros jsp...")
 
-
-@bot.command(pass_context=True)
-async def save(ctx):
+@bot.event
+async def on_member_update(before, after):
+    await before.guild.get_channel(667010964444545037).send(f"{datetime.datetime.utcnow()} | Les roles ont été save !")
     # On va merge les 2 json pour avoir une trace de ceux qui sont plus là en cas d'une save
     read_dict = {}
     try:
@@ -130,16 +130,11 @@ async def save(ctx):
         pass
 
     members_dict = {}
-    async for member in ctx.guild.fetch_members(limit=None):
+    async for member in before.guild.fetch_members(limit=None):
         members_dict[str(member.id)] = [role.id for role in member.roles]
 
-    # car j'ai pas 3.9 et que {**dict1, **dict2} me casse les couilles avec les clé en double
-    # bref ca modifie les roles de l'ancien fichier et ca le save
-    for id, roles in members_dict.items():
-        read_dict[id] = roles
-
     with open("roles.json", 'w') as f:
-        json.dump(read_dict, f)
+        json.dump({**read_dict, **members_dict}, f)
 
 
 @bot.event
