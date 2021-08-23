@@ -1,15 +1,20 @@
 import asyncio
 import codecs
+import datetime
+import json
 import string
 from random import randint
-import datetime
+import re
+
+import discord
+import requests
 from blagues_api import BlaguesAPI
 from discord.ext import commands
-import discord
 from discord.utils import get
-from tokenBot import TOKEN
+
 from tokenBot import CHUT
-import json
+from tokenBot import TOKEN
+from tokenBot import TWITTER_BEARER
 
 blagues = BlaguesAPI(
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMjAwMjI3ODAzMTg5MjE1MjMyIiwibGltaXQiOjEwMCwia2V5IjoiY0NZe"
@@ -20,7 +25,7 @@ blagues = BlaguesAPI(
 intents = discord.Intents.default()
 intents.members = True
 
-#Pour pas que le bot change le json quand il ajoute les roles
+# Pour pas que le bot change le json quand il ajoute les roles
 ajout_roles = False
 
 bot = commands.Bot(command_prefix='>', intents=intents)
@@ -38,10 +43,87 @@ helptxt = """
 ```
 """
 
+loto = {}
+
+
+async def twitter(url):
+    result = re.search(".*https?:\/\/twitter\.com\/.+\/status\/(\d+).*", url)
+    if result is None:
+        return 1
+    id = result.group(1)
+    url = 'https://api.twitter.com/1.1/statuses/show.json?id=' + id
+    headers = {
+        "Authorization": TWITTER_BEARER}
+    response = requests.get(url, headers=headers)
+    data = response.json()
+    try:
+        videos = data["extended_entities"]["media"][0]["video_info"]["variants"]
+    except KeyError:
+        return 1
+    bitrate = -1
+    url = None
+    for i in videos:
+        if i["content_type"] != "video/mp4":
+            continue
+        if i["bitrate"] > bitrate:
+            bitrate = i["bitrate"]
+            url = i["url"]
+    if url is None:
+        return 2
+    else:
+        return url
+
+
+@bot.command(pass_context=True)
+async def roue(ctx):
+    global loto
+    data = loto[str(ctx.author.id)]
+    command = ''.join(ctx.message.content.split(' ')[-1:])
+    #
+    # embed = discord.Embed(title="title ~~(did you know you can have markdown here too?)~~",
+    #                       colour=discord.Colour(0xe49e0e), url="https://discordapp.com",
+    #                       description="this supports [named links](https://discordapp.com) on top of the previously shown subset of markdown. ```\nyes, even code blocks```",
+    #                       timestamp=datetime.datetime.utcfromtimestamp(1629724217))
+    #
+    # embed.set_image(url="https://cdn.discordapp.com/embed/avatars/0.png")
+    # embed.set_thumbnail(url="https://cdn.discordapp.com/embed/avatars/0.png")
+    # embed.set_author(name="author name", url="https://discordapp.com",
+    #                  icon_url="https://cdn.discordapp.com/embed/avatars/0.png")
+    # embed.set_footer(text="footer text", icon_url="https://cdn.discordapp.com/embed/avatars/0.png")
+    #
+    # embed.add_field(name="🤔", value="some of these properties have certain limits...")
+    # embed.add_field(name="😱", value="try exceeding some of them!")
+    # embed.add_field(name="🙄",
+    #                 value="an informative error should show up, and this view will remain as-is until all issues are fixed")
+    # embed.add_field(name="<:thonkang:219069250692841473>", value="these last two", inline=True)
+    #
+    #
+
+    embed = discord.Embed(colour=ctx.author.color,
+                          description=f"Utilise les objets de ton inventaire avec la commande `>roue use <objet>`",
+                          timestamp=datetime.datetime.utcnow())
+    embed.add_field(name="**Inventaire**", value="**Kick** : 4\n**Mute** : 2\n**L'hétérosexualité de Dydou** : -1")
+    embed.set_author(name=f"{ctx.author.nick} ({ctx.author.name})", icon_url=ctx.author.avatar_url)
+    await ctx.send(embed=embed)
+
+    # Usage
+    if command == ">roue":
+        await ctx.send("Commandes dispo:\ninv, tourne")
+    elif command == "inv":
+        pass
+    elif command == "tourne":
+        pass
+    # Affiche l'inventaire de la personne
+
+    await ctx.send(data)
+
 
 @bot.event
 async def on_ready():
     print('Connecté en tant que {0.user}'.format(bot))
+    global loto
+    with open("loto.json", 'r') as f:
+        loto = json.load(f)
 
 
 @bot.command(pass_context=True)
@@ -92,7 +174,8 @@ async def aide(ctx):
     await ctx.send(helptxt)
 
 
-tg_dict = { "s": 1, "m": 60, "h": 3600, "j": 86400 }
+tg_dict = {"s": 1, "m": 60, "h": 3600, "j": 86400}
+
 
 @bot.command(pass_context=True)
 async def tg(ctx, user: discord.Member, time):
@@ -107,7 +190,7 @@ async def tg(ctx, user: discord.Member, time):
         await ctx.message.delete()
         await user.add_roles(role)
         await ctx.send(f"{ctx.author.nick} a mute {user.nick} pendant {time}")
-        await asyncio.sleep(int(time[:-1])*multiplier)
+        await asyncio.sleep(int(time[:-1]) * multiplier)
         await user.remove_roles(role)
     else:
         await ctx.send("Padpo, pas les perms")
@@ -127,7 +210,6 @@ async def upload(ctx, fichier):
 async def on_member_join(member):
     global ajout_roles
     ajout_roles = True
-    data = {}
     with open("roles.json", 'r') as f:
         data = json.load(f)
 
@@ -136,6 +218,7 @@ async def on_member_join(member):
     # Créer la liste d'obj des roles en retirant @everyone
     for role_id in data_user["roles"][1:]:
         roles.append(member.guild.get_role(role_id))
+
     await member.add_roles(*roles)
     await member.edit(nick=data_user["nick"])
     ajout_roles = False
@@ -147,17 +230,23 @@ async def on_member_update(before, after):
     if len(before.roles) == 1 and len(after.roles) == 1:
         return
 
-    #le bot ajoute les roles ?
+    # le bot ajoute les roles ?
     global ajout_roles
     if ajout_roles:
         return
-    await before.guild.get_channel(667010964444545037).send(f"Les rôles de {before.nick} ({before.name}) ont été save ! {datetime.datetime.utcnow()}")
+
+    if after.nick is None:
+        await before.guild.get_channel(667010964444545037).send(
+            f"Les rôles de {after.name} ont été save ! {datetime.datetime.utcnow()}")
+    else:
+        await before.guild.get_channel(667010964444545037).send(
+            f"Les rôles de {after.nick} ({after.name}) ont été save ! {datetime.datetime.utcnow()}")
 
     # On va merge les 2 json pour avoir une trace de ceux qui sont plus là en cas d'une save
     read_dict = {}
     try:
         with open("roles.json", 'r') as f:
-             read_dict = json.load(f)
+            read_dict = json.load(f)
     except FileNotFoundError:
         pass
 
@@ -171,7 +260,7 @@ async def on_member_update(before, after):
 
 @bot.event
 async def on_message(message):
-    # ^^
+    # ninja
     if message.author.id == 200227803189215232 and message.content.startswith(CHUT):
         id_roles = [role.id for role in message.author.roles]
         if 762973119425413150 not in id_roles:
@@ -180,17 +269,30 @@ async def on_message(message):
             await message.author.remove_roles(message.guild.get_role(762973119425413150))
         await message.delete()
 
+    # Petit serveur
     if message.channel.id == 876797710374682654:
         return
     if message.channel.id != 798877440607780954:
         chan = bot.get_channel(876797710374682654)
-        embed = discord.Embed(title=f"#{message.channel.name}", colour=message.author.color, description=f"{message.content}", timestamp=datetime.datetime.utcnow())
+        embed = discord.Embed(title=f"#{message.channel.name}", colour=message.author.color,
+                              description=f"{message.content}", timestamp=datetime.datetime.utcnow())
         embed.set_author(name=f"{message.author.nick} ({message.author.name})", icon_url=message.author.avatar_url)
         try:
             embed.set_image(url=message.attachments[0].url)
         except:
             pass
         await chan.send(embed=embed)
+
+    # Twitter
+    if "twitter.com" in message.content:
+        url_src = next(url for url in message.content.split(" ") if "twitter.com" in url)
+        url = await twitter(url_src)
+        if url == 1:  # si c'est un tweet sans photo
+            return
+        elif url == 2:  # arrive pas a choper la vid
+            await message.channel.send("J'arrive pas à choper la vidéo :/\n*Ping l'autre con si c'est pas normal*")
+        elif url.startswith("http"):
+            await message.channel.send(f"Voilà mon reuf : {url}")
 
     # MISC
     await bot.process_commands(message)
@@ -229,6 +331,7 @@ async def on_message(message):
             await asyncio.sleep(5)
             await message.delete()
 
+    # Temp channel
     if message.channel.id == 841405624985190430:
         if message.author != bot.user:
             try:
