@@ -11,6 +11,7 @@ from blagues_api import BlaguesAPI
 from discord.ext import commands
 from discord.utils import get
 
+import tiktok
 from tokenBot import CHUT
 from tokenBot import TOKEN
 
@@ -260,10 +261,15 @@ async def on_message(message):
 
     # Twitter
     if "twitter.com" in message.content:
-        url_src = next(url for url in message.content.split(" ") if "twitter.com" in url)
-        process = subprocess.run(["youtube-dl", url_src, "-g"], capture_output=True, encoding='utf-8')
-        if process.returncode == 0:
-            await message.channel.send(f"J'ai trouvé une vidéo : {process.stdout}")
+        async with message.channel.typing():
+            url_src = next(url for url in message.content.split(" ") if "twitter.com" in url)
+            process = subprocess.run(["youtube-dl", url_src, "-g"], capture_output=True, encoding='utf-8')
+            if process.returncode == 0:
+                await message.channel.send(f"J'ai trouvé une vidéo : {process.stdout}")
+
+    # Tiktok
+    if "tiktok.com" in message.content:
+        await tiktok.download_video(message)
 
     # MISC
     await bot.process_commands(message)
