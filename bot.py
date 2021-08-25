@@ -3,18 +3,16 @@ import codecs
 import datetime
 import json
 import string
+import subprocess
 from random import randint
-import re
 
 import discord
-import requests
 from blagues_api import BlaguesAPI
 from discord.ext import commands
 from discord.utils import get
 
 from tokenBot import CHUT
 from tokenBot import TOKEN
-from tokenBot import TWITTER_BEARER
 
 blagues = BlaguesAPI(
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMjAwMjI3ODAzMTg5MjE1MjMyIiwibGltaXQiOjEwMCwia2V5IjoiY0NZe"
@@ -44,34 +42,6 @@ helptxt = """
 """
 
 loto = {}
-
-
-async def twitter(url):
-    result = re.search(".*https?:\/\/twitter\.com\/.+\/status\/(\d+).*", url)
-    if result is None:
-        return 1
-    id = result.group(1)
-    url = 'https://api.twitter.com/1.1/statuses/show.json?id=' + id
-    headers = {
-        "Authorization": TWITTER_BEARER}
-    response = requests.get(url, headers=headers)
-    data = response.json()
-    try:
-        videos = data["extended_entities"]["media"][0]["video_info"]["variants"]
-    except KeyError:
-        return 1
-    bitrate = -1
-    url = None
-    for i in videos:
-        if i["content_type"] != "video/mp4":
-            continue
-        if i["bitrate"] > bitrate:
-            bitrate = i["bitrate"]
-            url = i["url"]
-    if url is None:
-        return 2
-    else:
-        return url
 
 
 @bot.command(pass_context=True)
@@ -235,12 +205,10 @@ async def on_member_update(before, after):
     if ajout_roles:
         return
 
-    if after.nick is None:
-        await before.guild.get_channel(667010964444545037).send(
-            f"Les rôles de {after.name} ont été save ! {datetime.datetime.utcnow()}")
-    else:
-        await before.guild.get_channel(667010964444545037).send(
-            f"Les rôles de {after.nick} ({after.name}) ont été save ! {datetime.datetime.utcnow()}")
+    # cette fonction semble être appelé meme si rien ne change...
+    # bizarre mais du coup on rajoute un check pour éviter le spam
+    if len(before.roles) == len(after.roles) and before.nick == after.nick:
+        return
 
     # On va merge les 2 json pour avoir une trace de ceux qui sont plus là en cas d'une save
     read_dict = {}
@@ -256,6 +224,13 @@ async def on_member_update(before, after):
 
     with open("roles.json", 'w') as f:
         json.dump({**read_dict, **members_dict}, f)
+
+    if after.nick is None:
+        await before.guild.get_channel(667010964444545037).send(
+            f"Les rôles de {after.name} ont été save ! {datetime.datetime.utcnow()}")
+    else:
+        await before.guild.get_channel(667010964444545037).send(
+            f"Les rôles de {after.nick} ({after.name}) ont été save ! {datetime.datetime.utcnow()}")
 
 
 @bot.event
@@ -286,13 +261,9 @@ async def on_message(message):
     # Twitter
     if "twitter.com" in message.content:
         url_src = next(url for url in message.content.split(" ") if "twitter.com" in url)
-        url = await twitter(url_src)
-        if url == 1:  # si c'est un tweet sans photo
-            return
-        elif url == 2:  # arrive pas a choper la vid
-            await message.channel.send("J'arrive pas à choper la vidéo :/\n*Ping l'autre con si c'est pas normal*")
-        elif url.startswith("http"):
-            await message.channel.send(f"Voilà mon reuf : {url}")
+        process = subprocess.run(["youtube-dl", url_src, "-g"], capture_output=True, encoding='utf-8')
+        if process.returncode == 0:
+            await message.channel.send(f"J'ai trouvé une vidéo : {process.stdout}")
 
     # MISC
     await bot.process_commands(message)
