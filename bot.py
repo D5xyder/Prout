@@ -75,11 +75,11 @@ async def roue(ctx):
                           timestamp=datetime.datetime.utcnow())
     embed.add_field(name="**Inventaire**", value="**Kick** : 4\n**Mute** : 2\n**L'hétérosexualité de Dydou** : -1")
     embed.set_author(name=f"{ctx.author.nick} ({ctx.author.name})", icon_url=ctx.author.avatar_url)
-    await ctx.send(embed=embed)
+    await ctx.reply(embed=embed)
 
     # Usage
     if command == ">roue":
-        await ctx.send("Commandes dispo:\ninv, tourne")
+        await ctx.reply("Commandes dispo:\ninv, tourne")
     elif command == "inv":
         pass
     elif command == "tourne":
@@ -107,7 +107,7 @@ async def say(ctx):
         else:
             await ctx.send(' '.join(message.content.split(' ')[1:]))
     else:
-        await ctx.send("hehe")
+        await ctx.reply("hehe")
 
 
 @bot.command(pass_context=True)
@@ -118,9 +118,9 @@ async def clear(ctx):
         if len(limit_list) > 1:
             await ctx.channel.purge(limit=int(limit_list[1]))
         else:
-            await ctx.send("Utilisation : >clear nombre")
+            await ctx.reply("Utilisation : >clear nombre")
     else:
-        await ctx.send("hehe")
+        await ctx.reply("hehe")
 
 
 @bot.command(pass_context=True)
@@ -136,13 +136,13 @@ async def blague(ctx):
             await asyncio.sleep(3)
             await ctx.send(b.answer)
         except:
-            await ctx.send(
+            await ctx.reply(
                 "Catégorie invalide mon reuf, essaye de taper `>aide` pour avoir toutes les catégories")
 
 
 @bot.command(pass_context=True)
 async def aide(ctx):
-    await ctx.send(helptxt)
+    await ctx.reply(helptxt)
 
 
 tg_dict = {"s": 1, "m": 60, "h": 3600, "j": 86400}
@@ -155,7 +155,7 @@ async def tg(ctx, user: discord.Member, time):
         try:
             multiplier = tg_dict[time[-1:]]
         except KeyError:
-            await ctx.send("Usage: >tg <@personne> <nombre><unité>\nEx: >tg @Dydou 60s\nUnités dispo : s, m, h, j")
+            await ctx.reply("Usage: >tg <@personne> <nombre><unité>\nEx: >tg @Dydou 60s\nUnités dispo : s, m, h, j")
             return
         role = get(ctx.guild.roles, id=676415527098384406)
         await ctx.message.delete()
@@ -164,7 +164,7 @@ async def tg(ctx, user: discord.Member, time):
         await asyncio.sleep(int(time[:-1]) * multiplier)
         await user.remove_roles(role)
     else:
-        await ctx.send("Padpo, pas les perms")
+        await ctx.reply("Padpo, pas les perms")
 
 
 @bot.command(pass_context=True)
@@ -172,9 +172,9 @@ async def upload(ctx, fichier):
     if "token" in fichier:
         return
     try:
-        await ctx.send(file=discord.File(rf'./{fichier}'))
+        await ctx.reply(file=discord.File(rf'./{fichier}'))
     except:
-        await ctx.send("Fichier introuvable ou trop gros jsp...")
+        await ctx.reply("Fichier introuvable ou trop gros jsp...")
 
 
 @bot.event
@@ -265,7 +265,7 @@ async def on_message(message):
             url_src = next(url for url in message.content.split(" ") if "twitter.com" in url)
             process = subprocess.run(["youtube-dl", url_src, "-g"], capture_output=True, encoding='utf-8')
             if process.returncode == 0:
-                await message.channel.send(f"J'ai trouvé une vidéo : {process.stdout}")
+                await message.reply(process.stdout)
 
     # Tiktok
     if "tiktok.com" in message.content:
@@ -276,7 +276,7 @@ async def on_message(message):
     msg = message.content.lower()
 
     if msg.startswith("envoie roux") or msg.startswith("sale roux"):
-        await message.channel.send(
+        await message.reply(
             "https://cdn.discordapp.com/attachments/667053408636633088/821064431847866398/alors-toi-le-roukmout.mp4")
         return
 
@@ -326,12 +326,12 @@ async def on_message(message):
     msg = msg.translate(table).rstrip()
     if msg.endswith("quoi"):
         if randint(1, 500) == 355:
-            await message.channel.send("feur")
+            await message.reply("feur")
         return
 
     if msg.endswith("oui"):
         if randint(1, 500) == 355:
-            await message.channel.send("stiti")
+            await message.reply("stiti")
         return
 
     if "tg femme" in msg:
